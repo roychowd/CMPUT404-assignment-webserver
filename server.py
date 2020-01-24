@@ -40,34 +40,43 @@ class MyWebServer(socketserver.BaseRequestHandler):
         # split at r and get the first request header
         #req of the form [OPERATION , "/" , HTTP/1,1]
         req = self.data.decode()
+        # check if the POST is a GET if not raise 405 
         if ("GET" not in req):
             content = "HTTP/1.1 405 Not FOUND! \nContent-Type: text/html\n\n"
             self.request.sendall(content.encode()) 
+        # Splitt in the \r 
         newreq = req.split('\r')[0].split()
+        # utilized the Pathlib library found here https://docs.python.org/3/library/pathlib.html
         filepath  = str(Path("www").absolute())+newreq[1]
         isValid = False
-        if (Path(filepath).is_file()): # file exists   
+        # if the path is a file 
+        if (Path(filepath).is_file()): # file exists  
+            #if css send 200 with content being the css file 
             if ("css" in newreq[1]):
-                content = "HTTP/1.1 200 OK!\r\nContent-Type: text/css\r\n\r\n"
-                isValid = True
+                content = "HTTP/1.1 200 OK!\r\nContent-Type: text/css\r\n"
+                isValid = True # set is valid true for the /.../.../ test case
+            # if html sent 200 with content being the html file
             elif ("html" in newreq[1]):
-                content = "HTTP/1.1 200 OK!\r\nContent-Type: text/html\r\n\r\n"
+                content = "HTTP/1.1 200 OK!\r\nContent-Type: text/html\r\n"
                 isValid = True
             if (isValid == True):
-                content += open(filepath).read()
-                self.request.sendall(content.encode())
-                isValid = False
+                lengthofContent = open(filepath).read() # open the file and read it
+                content += "Content-Length: " + str(len(lengthofContent)) + "\r\n\n" #append content legnth of the file in header of http
+                content += open(filepath).read() # open the file and read it and addpend to content
+                self.request.sendall(content.encode()) # send to server
+                isValid = False # set is valid to false for next request 
             else:
                 self.send404()
         elif (Path(filepath).is_dir()):
+            # check if deep and the path does not end with "/"
             if ("deep" in newreq[1] and not newreq[1].endswith("/") ):
-                filepath += "/"
-                # print(filepath)
-                content = "HTTP/1.1 301 Moved Permanently\r\nLocation: " +HOSTDOMAIN + newreq[1] + "\r\n\r\n"
+                filepath += "/" # append backslash ot url and send 301 
+                content = "HTTP/1.1 301 Moved Permanently\r\nLocation: " +HOSTDOMAIN + newreq[1] + "/" + "\r\n\r\n"
                 self.request.sendall(content.encode())
             newfilepath = filepath + "index.html"
-            # print(newfilepath)
-            content = "HTTP/1.1 200 OK!\r\nContent-Type: text/html\n\n"
+            content = "HTTP/1.1 200 OK!\r\nContent-Type: text/html\r\n"
+            lengthofContent = open(newfilepath).read()
+            content += "Content-Length: " + str(len(lengthofContent)) + "\r\n\n"
             content +=  open(newfilepath).read()
             self.request.sendall(content.encode())
         else:
@@ -76,7 +85,7 @@ class MyWebServer(socketserver.BaseRequestHandler):
 
     def send404(self):
         content = "HTTP/1.1 404 Not Found\r\nContent-Type: text/html\r\n\r\n" + """<html><body>404 Error Not Found</body></html>"""
-        print(content)
+        # print(content)
         self.request.sendall(content.encode())
 
 
